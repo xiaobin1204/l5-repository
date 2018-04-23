@@ -70,7 +70,11 @@ class RequestCriteria implements CriteriaInterface
                     $condition = trim(strtolower($condition));
 
                     if (isset($searchData[$field])) {
-                        $value = ($condition == "like" || $condition == "ilike") ? "%{$searchData[$field]}%" : $searchData[$field];
+                        $value = $searchData[$field];
+                        if($condition == "like" || $condition == "ilike")
+                            $value = "%{$searchData[$field]}%";
+                        if($condition == "in" || $condition == "between")
+                            $value = explode(',', $searchData[$field]);
                     } else {
                         if (!is_null($search)) {
                             $value = ($condition == "like" || $condition == "ilike") ? "%{$search}%" : $search;
@@ -88,10 +92,22 @@ class RequestCriteria implements CriteriaInterface
                         if (!is_null($value)) {
                             if(!is_null($relation)) {
                                 $query->whereHas($relation, function($query) use($field,$condition,$value) {
-                                    $query->where($field,$condition,$value);
+                                    if ($condition == 'in') {
+                                        $query->whereIn($field, $value);
+                                    } elseif($condition == 'between') {
+                                        $query->whereBetween($field, $value);
+                                    } else {
+                                        $query->where($field,$condition,$value);
+                                    }
                                 });
                             } else {
-                                $query->where($modelTableName.'.'.$field,$condition,$value);
+                                if ($condition == 'in') {
+                                    $query->whereIn($modelTableName.'.'.$field, $value);
+                                } elseif($condition == 'between') {
+                                    $query->whereBetween($modelTableName.'.'.$field, $value);
+                                } else {
+                                    $query->where($modelTableName.'.'.$field,$condition,$value);
+                                }
                             }
                             $isFirstField = false;
                         }
